@@ -157,11 +157,36 @@ FROM teacher t INNER JOIN course c ON t.t_id = c.t_id
 GROUP BY t.t_id, t_name;
 
 -- 22、查询所有课程的成绩第2名到第3名的学生信息及该课程成绩（重要 25类似）
-
+SELECT * FROM(
+    SELECT s.c_id, st.s_id, st.s_name, s.s_score,
+       rank() OVER (PARTITION BY c_id ORDER BY s_score) AS rk
+    FROM student st INNER JOIN score s ON st.s_id = s.s_id
+             ) a
+WHERE rk IN (2, 3);
 
 -- 23、使用分段[100-85],[85-70],[70-60],[<60]来统计各科成绩，分别统计各分数段人数：课程ID和课程名称
+SELECT c.c_id, c.c_name,
+       sum(CASE WHEN s.s_score < 60 THEN 1 ELSE 0 END) AS "[<60]",
+       sum(CASE WHEN s.s_score >= 60 AND s.s_score < 70 THEN 1 ELSE 0 END) AS "[60-70]",
+       sum(CASE WHEN s.s_score >= 70 AND s.s_score < 85 THEN 1 ELSE 0 END) AS "[70-85]",
+       sum(CASE WHEN s.s_score >= 85 THEN 1 ELSE 0 END) AS "[85-100]"
+FROM score s INNER JOIN course c ON c.c_id = s.c_id
+GROUP BY c.c_id, c_name;
+
 -- 24、查询学生平均成绩及其名次
+SELECT s_id, round(avg(s_score), 2),
+       rank() OVER (ORDER BY avg(s_score) DESC)
+FROM score
+GROUP BY s_id;
+
 -- 25、查询各科成绩前三名的记录（不考虑成绩并列情况）
+SELECT * FROM(
+    SELECT s.c_id, st.s_id, st.s_name, s.s_score,
+       row_number() OVER (PARTITION BY c_id ORDER BY s_score) AS rk
+    FROM student st INNER JOIN score s ON st.s_id = s.s_id
+             ) a
+WHERE rk IN (1, 2, 3);
+
 -- 26、查询每门课程被选修的学生数
 -- 27、查询出只有两门课程的全部学生的学号和姓名
 -- 28、查询男生、女生人数
