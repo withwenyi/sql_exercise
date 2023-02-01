@@ -188,26 +188,166 @@ SELECT * FROM(
 WHERE rk IN (1, 2, 3);
 
 -- 26、查询每门课程被选修的学生数
+SELECT c_id, COUNT(s_id)
+FROM score
+GROUP BY c_id;
+
 -- 27、查询出只有两门课程的全部学生的学号和姓名
+SELECT s_id, s_name
+FROM student
+WHERE s_id IN (
+    SELECT s_id
+    FROM score
+    GROUP BY s_id
+    HAVING COUNT(c_id) = 2
+    );
+
 -- 28、查询男生、女生人数
+SELECT SUM(CASE WHEN s_sex = '男' THEN 1 ELSE 0 END) AS "男生人数",
+       SUM(CASE WHEN s_sex = '女' THEN 1 ELSE 0 END) AS "女生人数"
+FROM student;
+
+SELECT s_sex, COUNT(s_id)
+FROM student
+GROUP BY s_sex;
+
 -- 29、查询名字中含有"风"字的学生信息
+SELECT * FROM student
+WHERE s_name LIKE '%风%';
+
 -- 31、查询1990年出生的学生名单
+SELECT * FROM student
+WHERE EXTRACT(YEAR from TO_DATE(s_birth, 'yyyy-mm-dd')) = 1990;
+
 -- 32、查询平均成绩大于等于85的所有学生的学号、姓名和平均成绩
+SELECT st.s_id, st.s_name, ROUND(AVG(s.s_score), 2)
+FROM student st INNER JOIN score s ON st.s_id = s.s_id
+GROUP BY st.s_id, st.s_name
+HAVING AVG(s.s_score) >= 85;
+
 -- 33、查询每门课程的平均成绩，结果按平均成绩升序排序，平均成绩相同时，按课程号降序排列
+SELECT c_id, AVG(s_score) AS avg
+FROM score
+GROUP BY c_id
+ORDER BY avg, c_id DESC;
+
 -- 34、查询课程名称为"数学"，且分数低于60的学生姓名和分数
--- 35、查询所有学生的课程及分数情况
+SELECT st.s_name, s.s_score
+FROM student st INNER JOIN score s ON st.s_id = s.s_id
+    INNER JOIN course c ON c.c_id = s.c_id
+WHERE c.c_name = '数学' AND s.s_score < 60;
+
+-- 35、查询所有学生的课程及分数情况【长表转宽表】
+SELECT st.s_name,
+       MAX(CASE WHEN c.c_name = '语文' THEN s.s_score END) AS "语文",
+       MAX(CASE WHEN c.c_name = '数学' THEN s.s_score END) AS "数学",
+       MAX(CASE WHEN c.c_name = '英语' THEN s.s_score END) AS "英语"
+FROM student st INNER JOIN score s ON st.s_id = s.s_id
+    INNER JOIN course c ON c.c_id = s.c_id
+GROUP BY st.s_name;
+
 -- 36、查询任何一门课程成绩在70分以上的姓名、课程名称和分数
+SELECT st.s_name, c.c_name, s.s_score
+FROM student st INNER JOIN score s ON st.s_id = s.s_id
+    INNER JOIN course c ON c.c_id = s.c_id
+WHERE s.s_score >= 70;
+
 -- 37、查询不及格的课程并按课程号从大到小排列
+SELECT c.c_id, c.c_name, s.s_score
+FROM student st INNER JOIN score s ON st.s_id = s.s_id
+    INNER JOIN course c ON c.c_id = s.c_id
+WHERE s.s_score < 60
+ORDER BY c.c_id DESC;
+
 -- 38、查询课程编号为03且课程成绩在80分以上的学生的学号和姓名
+SELECT st.s_id, st.s_name, s.s_score
+FROM student st INNER JOIN score s ON st.s_id = s.s_id
+WHERE s.s_score >= 80 AND s.c_id = '03';
+
 -- 39、求每门课程的学生人数
+SELECT c_id, COUNT(s_id)
+FROM score
+GROUP BY c_id;
+
 -- 40、查询选修“张三”老师所授课程的学生中成绩最高的学生姓名及其成绩
+SELECT st.s_name, s.s_score
+FROM student st INNER JOIN score s ON st.s_id = s.s_id
+    INNER JOIN course c ON c.c_id = s.c_id
+    INNER JOIN teacher t ON t.t_id = c.t_id
+WHERE t.t_name = '张三'
+ORDER BY s.s_score DESC
+LIMIT 1;
+
 -- 41、查询不同课程成绩相同的学生的学生编号、课程编号、学生成绩 （难）
+SELECT DISTINCT s1.s_id, s1.c_id, s1.s_score
+FROM score s1 INNER JOIN score s2
+ON s1.c_id != s2.c_id AND s1.s_id = s2.s_id AND s1.s_score = s2.s_score;
+
 -- 42、查询每门功成绩最好的前两名
+SELECT *
+FROM(
+    SELECT s_id, c_id, s_score,
+       ROW_NUMBER() OVER (PARTITION BY c_id ORDER BY s_score DESC) AS rk
+    FROM score
+    ) tmp
+WHERE rk IN (1, 2);
+
 -- 43、统计每门课程的学生选修人数（超过5人的课程才统计）。要求输出课程号和选修人数，查询结果按人数降序排列，若人数相同，按课程号升序排列
+SELECT c_id, COUNT(s_id) as cnt
+FROM score
+GROUP BY c_id
+HAVING COUNT(s_id) > 5
+ORDER BY cnt DESC, c_id;
+
 -- 44、检索至少选修两门课程的学生学号
+SELECT s_id, COUNT(c_id) as cnt
+FROM score
+GROUP BY s_id
+HAVING COUNT(c_id) >= 2;
+
 -- 45、查询选修了全部课程的学生信息
+SELECT *
+FROM student
+WHERE s_id IN (
+    SELECT s_id
+    FROM score
+    GROUP BY s_id
+    HAVING COUNT(c_id) = (SELECT COUNT(c_id) FROM course)
+    );
+
 -- 46、查询各学生的年龄
+SELECT s_id, s_name,
+       EXTRACT(YEAR from CURRENT_DATE)- EXTRACT(YEAR from TO_DATE(s_birth, 'yyyy-mm-dd')) AS age
+FROM student;
+
 -- 47、查询没学过“张三”老师讲授的任一门课程的学生姓名
+SELECT s_id, s_name
+FROM student
+WHERE s_id NOT IN (
+    SELECT s.s_id
+    FROM score s INNER JOIN course c ON s.c_id = c.c_id
+        INNER JOIN teacher t ON t.t_id = c.t_id
+    WHERE t.t_name = '张三'
+    );
+
 -- 48、查询两门以上不及格课程的同学的学号及其平均成绩
+SELECT s_id, ROUND(AVG(s_score), 2)
+FROM score
+WHERE s_id IN (
+    SELECT s_id
+    FROM score
+    WHERE s_score < 60
+    GROUP BY s_id
+    HAVING COUNT(c_id) >= 2
+    )
+GROUP BY s_id;
+
 -- 49、查询本月过生日的学生
+SELECT *
+FROM student
+WHERE EXTRACT(MONTH from TO_DATE(s_birth, 'yyyy-mm-dd')) = EXTRACT(MONTH from CURRENT_DATE);
+
 -- 50、查询下一个月过生日的学生
+SELECT *
+FROM student
+WHERE EXTRACT(MONTH from TO_DATE(s_birth, 'yyyy-mm-dd')) = EXTRACT(MONTH from CURRENT_DATE) + 1;
